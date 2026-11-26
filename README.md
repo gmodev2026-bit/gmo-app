@@ -1,0 +1,254 @@
+# Next.js Better Auth Prisma Template
+
+A production-ready Next.js 16 SaaS starter: authentication, PostgreSQL, admin and user dashboards, and transactional emails, already wired with Better Auth, Prisma and shadcn/ui. Deploy it to Railway in one click, or run it locally in a few minutes.
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/nextjs-better-auth-prisma-template?referralCode=HKQvZr&utm_medium=integration&utm_source=template&utm_campaign=generic&utm_content=readme)
+
+![GitHub stars](https://img.shields.io/github/stars/laguillo/nextjs-better-auth-prisma-template?style=flat&logo=github) ![License: MIT](https://img.shields.io/badge/license-MIT-green)
+
+> **One click → live app.** The Railway button provisions PostgreSQL, wires `DATABASE_URL`, applies migrations and gives you a public HTTPS URL. Only `RESEND_API_KEY` and Google OAuth keys are needed afterwards to enable emails and social login.
+
+## ✨ Main Features
+
+- **Complete Authentication**: Robust authentication system with [Better Auth](https://better-auth.com/)
+  - Email & Password
+  - Social Login (Google)
+  - Email Verification
+  - Password Recovery
+  - Session Management
+- **Roles and Permissions**: Role system (Admin, User) with authorization enforced inside each page
+- **Database**: PostgreSQL with Prisma ORM and custom output in `src/generated/prisma`
+- **Modern UI**: Styled components with Tailwind CSS 4 and Shadcn UI (Base UI style, not Radix), dark by default with a Light / System / Dark selector
+- **Transactional Emails**: Email templates with React Email and sending via Resend
+- **Dashboards**: Pre-built layouts for admin and user panels
+- **Cache Components**: Next.js 16 Cache Components and Partial Prefetching are enabled, so pages prerender a static shell and stream the personalized parts
+- **Railway-ready**: Healthcheck at `/api/health`, restart on failure, and migrations applied on every start
+- **Type-Safe**: Safe development with TypeScript throughout the project
+- **Fast linting**: [Oxlint](https://oxc.rs/docs/guide/usage/linter) with Next.js, React Hooks and accessibility rules, plus Prettier with Tailwind class sorting
+
+## 🚀 Technologies
+
+- **[Next.js 16](https://nextjs.org/)**: App Router, Server Components, Server Actions and Cache Components
+- **[React 19](https://react.dev/)**: Latest React features
+- **[Better Auth 1.7](https://better-auth.com/)**: Modern and secure authentication
+- **[Prisma 7](https://www.prisma.io/)**: ORM for interacting with PostgreSQL, using the `@prisma/adapter-pg` driver adapter
+- **[Tailwind CSS 4](https://tailwindcss.com/)**: Fast and flexible styling
+- **[Shadcn UI](https://ui.shadcn.com/)** on **[Base UI](https://base-ui.com/)**: Accessible and customizable UI components
+- **[Resend](https://resend.com/)** and **[React Email](https://react.email/)**: Transactional emails
+- **[Oxlint](https://oxc.rs/docs/guide/usage/linter)**: Rust-based linter that replaces ESLint, with built-in Next.js, React and jsx-a11y rules
+- **[Bun](https://bun.sh/)**: Fast JavaScript runtime and package manager (recommended)
+
+## 🛠️ Installation and Setup
+
+Follow these steps to set up the project in your local environment.
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) 1.4.3 or newer
+- [Node.js](https://nodejs.org/) 26 or newer (`engines.node` in `package.json`)
+- A PostgreSQL database: local, hosted, or the zero-setup option in step 4
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/laguillo/nextjs-better-auth-prisma-template.git
+cd nextjs-better-auth-prisma-template
+```
+
+### 2. Install dependencies
+
+We recommend using **Bun** for a faster experience:
+
+```bash
+bun install
+```
+
+### 3. Configure Environment Variables
+
+Create a `.env` file in the project root and configure the following variables:
+
+```env
+# Database (PostgreSQL)
+DATABASE_URL="postgresql://user:password@localhost:5432/mydb?schema=public"
+
+# Better Auth
+BETTER_AUTH_SECRET="your_super_secure_secret" # Generate with: openssl rand -base64 32
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_BASE_URL="http://localhost:3000" # In production: your public domain (also used for OG image, sitemap and robots URLs)
+
+# OAuth Providers (Google)
+GOOGLE_CLIENT_ID="your_google_client_id"
+GOOGLE_CLIENT_SECRET="your_google_client_secret"
+
+# Email (Resend)
+RESEND_API_KEY="re_123456789"
+EMAIL_SENDER_NAME="Your App"
+EMAIL_SENDER_ADDRESS="noreply@yourapp.com"
+```
+
+| Variable                                    | What it is for                                                                                                                                                                           |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                              | PostgreSQL connection string used by Prisma.                                                                                                                                             |
+| `BETTER_AUTH_SECRET`                        | Secret Better Auth uses to sign sessions.                                                                                                                                                |
+| `BETTER_AUTH_URL`                           | Public URL of the app (Better Auth's base URL).                                                                                                                                          |
+| `NEXT_PUBLIC_BASE_URL`                      | Public URL used for the OG image, sitemap, robots and password-reset links. Resolved at **build time**; falls back to `BETTER_AUTH_URL`.                                                 |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`  | Google OAuth credentials. In Google Cloud Console add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI (use your production domain there when you deploy). |
+| `RESEND_API_KEY`                            | Resend API key, used for verification and password-reset emails.                                                                                                                         |
+| `EMAIL_SENDER_NAME`, `EMAIL_SENDER_ADDRESS` | The "From" of those emails. The address must be on a domain you have verified in Resend.                                                                                                 |
+
+### 4. Configure the Database
+
+Run Prisma migrations to create the tables:
+
+```bash
+bunx prisma migrate dev
+```
+
+This will also generate the Prisma client in `src/generated/prisma` automatically.
+
+> **No PostgreSQL installed?** `bunx prisma dev --detach` starts an isolated local Postgres without Docker. Copy the `postgres://…` URL it prints into `DATABASE_URL`, then run the command above.
+
+### 5. Start the Development Server
+
+```bash
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 6. Create your first admin
+
+There is no UI to promote a user, so do it once by hand:
+
+1. Sign up at `/signup`. Email/password accounts must verify their email before they can sign in. With a working `RESEND_API_KEY` you get the verification email; without one, open `bunx prisma studio` and set `emailVerified` to `true` on your user (signing in with Google skips this step).
+2. In Prisma Studio, set the user's `role` to `admin`.
+3. Sign in and open `/admin`.
+
+## 🔐 Protecting Pages
+
+Route protection has two layers:
+
+- **`src/proxy.ts`** redirects visitors without a session cookie from `/dashboard` and `/admin` to `/login`. It only checks that the cookie exists, so it is a convenience, not a security boundary.
+- **Gate components** validate the session against the database. Wrap the content of every page under `src/app/(protected)/` in the gate of its panel:
+
+```tsx
+// src/app/(protected)/admin/reports/page.tsx
+import { AdminGate } from '@/components/admin/auth-gate';
+
+export default function ReportsPage() {
+  return <AdminGate>{/* admin-only content */}</AdminGate>;
+}
+```
+
+Use `DashboardGate` (from `@/components/dashboard/auth-gate`) for pages under `/dashboard`.
+
+> A layout cannot protect its pages: Next.js renders route segments independently of the layout, and a page's output can still reach the browser in the RSC payload even if the layout replaces it with an error screen. That is why the check lives in the page.
+
+## ⚡ Cache Components
+
+Cache Components and Partial Prefetching are enabled in `next.config.ts`, so every route must be prerenderable. Reading `cookies()`, `headers()`, `await params` or `await searchParams` outside a `<Suspense>` boundary fails `bun run build` with _"Next.js encountered uncached or runtime data during prerendering"_ (`next dev` only shows it in the browser overlay and still serves the page, so `bun run build` is the reliable check).
+
+The fix is to move the request-time read into a small async component wrapped in `<Suspense>` with a skeleton fallback. The auth pages, `reset-password` and the protected layouts are working examples. See the [caching guide](https://nextjs.org/docs/app/getting-started/caching) and the [error page](https://nextjs.org/docs/messages/blocking-prerender-dynamic).
+
+## 🎨 Customizing
+
+- **Site name, tagline, GitHub link and Railway deploy link**: `src/lib/constants.ts`. The deploy link carries the template author's referral code, so replace it with your own if you publish a fork.
+- **Landing page**: `src/app/(public)/page.tsx` and `src/components/landing/`. Every deploy button takes a `placement` that becomes `utm_content`, so Railway's stats show which button converts.
+- **Default theme**: `defaultTheme` in `src/app/layout.tsx` (dark by default; `enableSystem` keeps the "System" option working).
+- **Emails**: templates in `src/components/emails/`, sending in `src/lib/auth.ts`.
+- **Authentication**: providers, plugins and email rules in `src/lib/auth.ts`. Email verification is required to sign in (`requireEmailVerification`).
+
+## 📂 Project Structure
+
+```
+├── .oxlintrc.json          # Oxlint rules (Next.js, React, jsx-a11y)
+├── prisma/
+│   ├── schema.prisma       # Database schema
+│   └── migrations/         # Migration history
+├── public/                 # Static files (favicons, tech-stack logo SVGs)
+├── railway.toml            # Railway healthcheck and restart policy
+├── src/
+│   ├── app/                # Application routes (App Router)
+│   │   ├── (auth)/         # Authentication routes
+│   │   │   ├── login/
+│   │   │   ├── signup/
+│   │   │   ├── forgot-password/
+│   │   │   └── reset-password/
+│   │   ├── (public)/       # Public landing page
+│   │   ├── (protected)/    # Routes requiring a session
+│   │   │   ├── dashboard/  # User panel
+│   │   │   └── admin/      # Admin panel (requires role === "admin")
+│   │   ├── api/            # API Routes (Better Auth handler, health check)
+│   │   ├── opengraph-image.tsx  # Generated social preview image
+│   │   ├── robots.ts       # robots.txt
+│   │   └── sitemap.ts      # sitemap.xml
+│   ├── components/         # React components
+│   │   ├── admin/          # Admin panel components (+ auth-gate and layout/ subfolder)
+│   │   ├── dashboard/      # User panel components (+ auth-gate and layout/ subfolder)
+│   │   ├── emails/         # Email templates (React Email)
+│   │   ├── landing/        # Public landing page components
+│   │   ├── shared/         # Shared components (theme toggle, skeletons, ...)
+│   │   └── ui/             # Base components (Shadcn UI on Base UI)
+│   ├── generated/          # Generated code
+│   │   └── prisma/         # Generated Prisma client (gitignored)
+│   ├── hooks/              # Custom React Hooks
+│   ├── lib/                # Utilities and configuration
+│   │   ├── auth.ts         # Better Auth configuration (server-only)
+│   │   ├── auth-client.ts  # Better Auth client (Client Components)
+│   │   ├── constants.ts    # Site name/URL and tracked Railway deploy link
+│   │   ├── prisma.ts       # Prisma client singleton
+│   │   └── utils.ts        # Helper functions
+│   ├── proxy.ts            # Optimistic redirect for /dashboard and /admin
+│   ├── server/             # Server Actions
+│   └── types/              # TypeScript type definitions
+```
+
+## 📜 Available Scripts
+
+- `bun dev`: Starts the development server
+- `bun run build`: Generates the Prisma client and builds the application for production (use `bun run build`, not `bun build`, which is Bun's own bundler)
+- `bun start`: Applies pending migrations (`prisma migrate deploy`) and starts the production server
+- `bunx tsc --noEmit`: Type-checks the project
+- `npm test`: Runs the focused GrowMeOnline pilot unit tests
+- `bun lint`: Lints the project with Oxlint (rules in `.oxlintrc.json`; shadcn components in `src/components/ui/` are skipped)
+- `bun run lint:fix`: Applies Oxlint's automatic fixes
+- `npm run db:pilot-simulate`: Runs a disposable end-to-end GrowMeOnline pilot simulation against `DATABASE_URL`
+- `npm run db:pilot-readiness`: Reports real supplier coverage for every pilot category/city combination
+- `npm run db:pilot-supply-test`: Verifies the five-supplier gate with records that roll back
+- `npm run db:cleanup-test-suppliers`: Removes only browser/test-only supplier records
+- `bunx prisma studio`: Opens Prisma Studio to visually manage the database
+- `bunx prisma migrate dev`: Creates and applies database migrations
+- `bunx prisma generate`: Regenerates the Prisma client after schema changes without creating a migration
+
+## 🗄️ Database Models
+
+The project includes the following models:
+
+- **User**: User information (id, name, email, role, banned, etc.). `role` defaults to `user`
+- **Session**: Session management with IP and userAgent information
+- **Account**: Linking with OAuth providers and credentials
+- **Verification**: Tokens for email verification and password recovery
+
+## 🚂 Deploying to Railway
+
+Click the **Deploy on Railway** button at the top. The template provisions PostgreSQL and wires `DATABASE_URL`; `bun start` applies pending migrations on every start, and `railway.toml` configures the `/api/health` healthcheck (it runs `SELECT 1` against the database) and restarts the service on failure.
+
+After the first deploy:
+
+1. Make sure `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` and `NEXT_PUBLIC_BASE_URL` are set. The last one is read at build time, so redeploy after changing it.
+2. Add `RESEND_API_KEY` (and `EMAIL_SENDER_NAME` / `EMAIL_SENDER_ADDRESS`) to enable verification and password-reset emails.
+3. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and register `https://<your-domain>/api/auth/callback/google` as a redirect URI in Google Cloud Console.
+4. Promote your first admin as described in [step 6](#6-create-your-first-admin).
+
+## 📚 More Information
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Better Auth Documentation](https://better-auth.com/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Shadcn UI Documentation](https://ui.shadcn.com/docs)
+- [Base UI Documentation](https://base-ui.com/react/overview/quick-start)
+- [Oxlint Documentation](https://oxc.rs/docs/guide/usage/linter)
+
+## 📄 License
+
+This project is under the MIT license.

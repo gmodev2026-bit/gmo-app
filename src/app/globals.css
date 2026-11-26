@@ -1,0 +1,330 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #020618;
+  --card: #ffffff;
+  --card-foreground: #020618;
+  --popover: #ffffff;
+  --popover-foreground: #020618;
+  --primary: #135858;
+  --primary-foreground: #ffffff;
+  --secondary: #f7f9fa;
+  --secondary-foreground: #020618;
+  --muted: #f7f9fa;
+  --muted-foreground: #62748e;
+  --accent: #e8eef0;
+  --accent-foreground: #020618;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #e8eef0;
+  --input: #e8eef0;
+  --ring: #135858;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+.landing-grid-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      to right,
+      var(--grid-line, var(--color-border)) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      var(--grid-line, var(--color-border)) 1px,
+      transparent 1px
+    );
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    #000 40%,
+    transparent 80%
+  );
+  mask-image: radial-gradient(
+    ellipse 80% 60% at 50% 0%,
+    #000 40%,
+    transparent 80%
+  );
+  opacity: 0.7;
+}
+
+/* ── Landing: accent, aurora and motion ── */
+.landing-aurora {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.landing-aurora::before,
+.landing-aurora::after {
+  content: '';
+  position: absolute;
+  top: -14rem;
+  width: 44rem;
+  height: 30rem;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.32;
+}
+
+.landing-aurora::before {
+  left: calc(50% - 38rem);
+  background: radial-gradient(closest-side, #7c3aed, transparent);
+}
+
+.landing-aurora::after {
+  right: calc(50% - 38rem);
+  background: radial-gradient(closest-side, #d946ef, transparent);
+}
+
+.dark .landing-aurora::before,
+.dark .landing-aurora::after {
+  opacity: 0.22;
+}
+
+.landing-text-gradient {
+  background-image: linear-gradient(
+    90deg,
+    #6d28d9 0%,
+    #c026d3 55%,
+    #0284c7 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.dark .landing-text-gradient {
+  background-image: linear-gradient(
+    90deg,
+    #a78bfa 0%,
+    #e879f9 55%,
+    #7dd3fc 100%
+  );
+}
+
+/* Animated glow behind the Railway deploy button */
+.deploy-cta {
+  position: relative;
+  isolation: isolate;
+}
+
+.deploy-cta::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg, #7c3aed, #d946ef, #38bdf8, #7c3aed);
+  background-size: 300% 100%;
+  filter: blur(12px);
+  opacity: 0.55;
+  transition: opacity 200ms ease;
+  animation: landing-glow 6s linear infinite;
+}
+
+.deploy-cta:hover::before {
+  opacity: 0.85;
+}
+
+@keyframes landing-glow {
+  to {
+    background-position: 300% 0;
+  }
+}
+
+/* Deploy log: lines reveal one after another once the card is in view */
+.deploy-log-line {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.deploy-log[data-play='true'] .deploy-log-line {
+  animation: landing-log-in 400ms ease-out forwards;
+  animation-delay: calc(var(--i) * 650ms + 300ms);
+}
+
+@keyframes landing-log-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes landing-ping {
+  75%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.landing-ping {
+  animation: landing-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Mobile nav popover. .\:popover-open is the class the polyfill applies
+   where :popover-open is unsupported; :is() keeps the rule valid there. */
+.landing-menu {
+  display: none;
+}
+
+.landing-menu:is(:popover-open, .\:popover-open) {
+  display: flex;
+}
+
+@media (width >= 48rem) {
+  .landing-menu:is(:popover-open, .\:popover-open) {
+    display: none;
+  }
+}
+
+/* FAQ: native <details>, sliding open where interpolate-size is supported */
+.landing-faq details::details-content {
+  interpolate-size: allow-keywords;
+  overflow: clip;
+  contain: layout;
+}
+
+.landing-faq details:not([open])::details-content {
+  block-size: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-faq details::details-content {
+    /* Longhands only: the minifier moves a shorthand after allow-discrete, which resets it */
+    transition-property: block-size, content-visibility;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-in-out;
+    transition-behavior: allow-discrete;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deploy-cta::before,
+  .landing-ping {
+    animation: none;
+  }
+
+  .deploy-log .deploy-log-line {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

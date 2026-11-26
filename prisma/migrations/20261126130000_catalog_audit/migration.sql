@@ -1,0 +1,2 @@
+ALTER TYPE "AdminAuditAction" ADD VALUE 'CATALOG_UPDATED';
+ALTER TYPE "AdminAuditEntityType" ADD VALUE 'CATALOG';

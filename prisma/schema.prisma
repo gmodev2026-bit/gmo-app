@@ -1,0 +1,675 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EnquiryStatus {
+  PENDING_REVIEW
+  NEEDS_INFORMATION
+  QUALIFIED
+  REJECTED
+  REJECTED_SPAM
+  MATCHING
+  DISPATCHED
+  CLOSED
+}
+
+enum ContactPreference {
+  PHONE
+  WHATSAPP
+}
+
+enum SupplierBusinessType {
+  SERVICE_PROVIDER
+  PRODUCT_SELLER
+  HYBRID
+}
+
+enum SupplierStatus {
+  DRAFT
+  PENDING_APPROVAL
+  CHANGES_REQUESTED
+  APPROVED
+  SUSPENDED
+}
+
+enum SupplierReviewEventType {
+  SUPPLIER_CREATED
+  PROFILE_UPDATED
+  STATUS_CHANGED
+  VERIFICATION_CHANGED
+}
+
+enum MediaPurpose {
+  LOGO
+  COVER
+  GALLERY
+  VERIFICATION_DOCUMENT
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+  REMOVED
+  FAILED
+}
+
+enum LeadAssignmentStatus {
+  PENDING_AVAILABILITY
+  CONFIRMED
+  DISPATCHED
+  CANCELLED
+}
+
+enum AvailabilityResponse {
+  AVAILABLE
+  UNAVAILABLE
+  NO_RESPONSE
+  NEEDS_CLARIFICATION
+}
+
+enum QuotaLedgerEntryType {
+  FREE_ASSIGNMENT_CONSUMED
+}
+
+enum EnquiryEntryChannel {
+  GUIDED_REQUEST
+  PERSONAL_BUSINESS_PAGE
+}
+
+enum LeadActivityType {
+  INTERNAL_REVIEW
+  CUSTOMER_CONTACT_ATTEMPT
+  SUPPLIER_CONTACT_ATTEMPT
+  CUSTOMER_REACHED
+  SUPPLIER_RESPONDED
+  APPOINTMENT_PROPOSED
+  APPOINTMENT_BOOKED
+  QUOTE_REQUESTED
+  QUOTE_RECEIVED
+  JOB_REPORTED_WON
+  JOB_REPORTED_LOST
+  FOLLOW_UP_SCHEDULED
+  FOLLOW_UP_COMPLETED
+  FEEDBACK_RECORDED
+}
+
+enum LeadActivityChannel {
+  INTERNAL
+  PHONE
+  EMAIL
+  WHATSAPP
+  SMS
+  IN_PERSON
+  OTHER
+}
+
+enum LeadActivityOutcome {
+  NO_ANSWER
+  REACHED
+  UNAVAILABLE
+  NEEDS_MORE_INFORMATION
+  APPOINTMENT_PROPOSED
+  APPOINTMENT_BOOKED
+  QUOTE_REQUESTED
+  QUOTE_RECEIVED
+  JOB_REPORTED_WON
+  JOB_REPORTED_LOST
+  COMPLETED
+  CANCELLED
+  FEEDBACK_RECORDED
+}
+
+enum LeadActivityStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum FunnelEventType {
+  LANDING_VIEWED
+  ENQUIRY_FORM_OPENED
+  ENQUIRY_SUBMITTED
+  ENQUIRY_SUBMISSION_FAILED
+}
+
+enum OutboxEventType {
+  SUPPLIER_DISPATCH_CONFIRMED
+}
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+}
+
+enum AdminAuditAction {
+  SUPPLIER_CREATED
+  SUPPLIER_PROFILE_UPDATED
+  SUPPLIER_REVIEWED
+  SUPPLIER_ACCOUNT_LINKED
+  ENQUIRY_CONTACT_VERIFIED
+  ENQUIRY_STATUS_CHANGED
+  SUPPLIER_AVAILABILITY_RECORDED
+  ENQUIRY_DISPATCHED
+  FOLLOW_UP_SCHEDULED
+  FOLLOW_UP_RESOLVED
+  CATALOG_UPDATED
+}
+
+enum AdminAuditEntityType {
+  SUPPLIER
+  ENQUIRY
+  CATALOG
+}
+
+model User {
+  id                    String                         @id @default(uuid())
+  name                  String
+  email                 String
+  emailVerified         Boolean                        @default(false)
+  image                 String?
+  role                  String                         @default("user")
+  banned                Boolean                        @default(false)
+  banReason             String?
+  banExpires            DateTime?
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+  sessions              Session[]
+  accounts              Account[]
+  client                Client?
+  enquiryStatusChanges  EnquiryStatusHistory[]
+  ownedSupplier         Supplier?                      @relation("SupplierOwner")
+  verifiedSuppliers     Supplier[]                     @relation("SupplierVerifier")
+  supplierReviewEvents  SupplierReviewEvent[]
+  dispatchedAssignments LeadAssignment[]               @relation("LeadAssignmentDispatcher")
+  availabilityResponses SupplierAvailabilityResponse[] @relation("AvailabilityResponder")
+  quotaLedgerEntries    QuotaLedgerEntry[]             @relation("QuotaLedgerActor")
+  leadActivities        LeadActivity[]                 @relation("LeadActivityActor")
+  adminAuditEvents      AdminAuditEvent[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Client {
+  id               String            @id @default(uuid())
+  userId           String            @unique
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone            String?
+  preferredContact ContactPreference @default(PHONE)
+  deletionRequestedAt DateTime?
+  deletionReason      String?
+  enquiries        Enquiry[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@map("client")
+}
+
+model Session {
+  id             String   @id @default(uuid())
+  expiresAt      DateTime
+  token          String
+  impersonatedBy String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Category {
+  id           String             @id @default(uuid())
+  name         String
+  slug         String             @unique
+  description  String?
+  parentId     String?
+  parent       Category?          @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Category[]         @relation("CategoryHierarchy")
+  isActive     Boolean            @default(true)
+  sortOrder    Int                @default(0)
+  enquiries    Enquiry[]
+  suppliers    SupplierCategory[]
+  funnelEvents FunnelEvent[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([parentId, isActive, sortOrder])
+  @@map("category")
+}
+
+model Province {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  cities    City[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("province")
+}
+
+model City {
+  id                   String                @id @default(uuid())
+  name                 String
+  slug                 String
+  provinceId           String
+  province             Province              @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  isActive             Boolean               @default(true)
+  enquiries            Enquiry[]
+  supplierServiceAreas SupplierServiceArea[]
+  funnelEvents         FunnelEvent[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@unique([provinceId, slug])
+  @@index([provinceId, isActive])
+  @@map("city")
+}
+
+model Enquiry {
+  id                        String                         @id @default(uuid())
+  publicReference           String                         @unique
+  submissionKey             String                         @unique
+  status                    EnquiryStatus                  @default(PENDING_REVIEW)
+  clientId                  String?
+  client                    Client?                        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  categoryId                String
+  category                  Category                       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  cityId                    String
+  city                      City                           @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  possibleDuplicateOfId     String?
+  possibleDuplicateOf       Enquiry?                       @relation("EnquiryPossibleDuplicate", fields: [possibleDuplicateOfId], references: [id], onDelete: SetNull)
+  possibleDuplicates        Enquiry[]                      @relation("EnquiryPossibleDuplicate")
+  customerName              String
+  customerPhone             String
+  customerEmail             String?
+  preferredContact          ContactPreference
+  jobDescription            String
+  formTemplateVersion       String                         @default("gmo-pilot-v1")
+  structuredAnswers         Json                           @default("{}")
+  privacyNoticeVersion      String
+  privacyNoticeAcceptedAt   DateTime
+  contactVerifiedAt         DateTime?
+  contactVerificationMethod String?
+  supplierSharingApprovedAt DateTime?
+  source                    String                         @default("WEBSITE")
+  utmSource                 String?
+  utmMedium                 String?
+  utmCampaign               String?
+  entryChannel              EnquiryEntryChannel            @default(GUIDED_REQUEST)
+  targetSupplierId          String?
+  targetSupplier            Supplier?                      @relation("TargetSupplierEnquiries", fields: [targetSupplierId], references: [id], onDelete: Restrict)
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
+  statusHistory             EnquiryStatusHistory[]
+  leadAssignments           LeadAssignment[]
+  outboxEvents              OutboxEvent[]
+  availabilityResponses     SupplierAvailabilityResponse[]
+  quotaLedgerEntries        QuotaLedgerEntry[]
+  leadActivities            LeadActivity[]
+
+  @@index([status, createdAt])
+  @@index([categoryId, cityId, status])
+  @@index([clientId, createdAt])
+  @@index([customerPhone, categoryId, cityId, createdAt])
+  @@index([possibleDuplicateOfId])
+  @@index([targetSupplierId])
+  @@map("enquiry")
+}
+
+model EnquiryStatusHistory {
+  id          String        @id @default(uuid())
+  enquiryId   String
+  enquiry     Enquiry       @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  actorUserId String
+  actor       User          @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  fromStatus  EnquiryStatus
+  toStatus    EnquiryStatus
+  reason      String
+  createdAt   DateTime      @default(now())
+
+  @@index([enquiryId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("enquiry_status_history")
+}
+
+model Supplier {
+  id                    String                         @id @default(uuid())
+  businessName          String
+  slug                  String                         @unique
+  businessType          SupplierBusinessType           @default(SERVICE_PROVIDER)
+  tagline               String?
+  description           String?
+  contactName           String?
+  phone                 String
+  email                 String?
+  website               String?
+  status                SupplierStatus                 @default(DRAFT)
+  isVerified            Boolean                        @default(false)
+  verificationMethod    String?
+  verifiedAt            DateTime?
+  verifiedByUserId      String?
+  verifiedBy            User?                          @relation("SupplierVerifier", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  ownerUserId           String?                        @unique
+  owner                 User?                          @relation("SupplierOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  internalNotes         String?
+  isActive              Boolean                        @default(true)
+  isIndexable           Boolean                        @default(false)
+  deletedAt             DateTime?
+  categories            SupplierCategory[]
+  serviceAreas          SupplierServiceArea[]
+  reviewHistory         SupplierReviewEvent[]
+  leadAssignments       LeadAssignment[]
+  availabilityResponses SupplierAvailabilityResponse[]
+  quotaLedgerEntries    QuotaLedgerEntry[]
+  targetEnquiries       Enquiry[]                      @relation("TargetSupplierEnquiries")
+  offerings             SupplierOffering[]
+  mediaAssets           MediaAsset[]
+  slugHistory           SupplierSlugHistory[]
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+
+  @@index([status, isVerified, isActive])
+  @@map("supplier")
+}
+
+model SupplierSlugHistory {
+  id        String   @id @default(uuid())
+  supplierId String
+  supplier  Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([supplierId, createdAt])
+  @@map("supplier_slug_history")
+}
+
+model SupplierCategory {
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  isPrimary   Boolean  @default(false)
+  isConfirmed Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@id([supplierId, categoryId])
+  @@index([categoryId, isConfirmed])
+  @@map("supplier_category")
+}
+
+model SupplierServiceArea {
+  id          String   @id @default(uuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  cityId      String
+  city        City     @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  isConfirmed Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([supplierId, cityId])
+  @@index([cityId, isConfirmed, isActive])
+  @@map("supplier_service_area")
+}
+
+model SupplierReviewEvent {
+  id           String                  @id @default(uuid())
+  supplierId   String
+  supplier     Supplier                @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  actorUserId  String
+  actor        User                    @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  type         SupplierReviewEventType
+  fromStatus   SupplierStatus?
+  toStatus     SupplierStatus?
+  fromVerified Boolean?
+  toVerified   Boolean?
+  reason       String
+  details      Json?
+  createdAt    DateTime                @default(now())
+
+  @@index([supplierId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("supplier_review_event")
+}
+
+model SupplierOffering {
+  id          String   @id @default(uuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([supplierId, isActive, sortOrder])
+  @@map("supplier_offering")
+}
+
+model MediaAsset {
+  id          String      @id @default(uuid())
+  supplierId  String
+  supplier    Supplier    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  purpose     MediaPurpose
+  status      MediaStatus @default(PENDING)
+  objectKey   String      @unique
+  mimeType    String
+  byteSize    Int
+  width       Int?
+  height      Int?
+  altText     String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([supplierId, purpose, status])
+  @@map("media_asset")
+}
+
+model LeadAssignment {
+  id                    String                         @id @default(uuid())
+  enquiryId             String
+  enquiry               Enquiry                        @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  supplierId            String
+  supplier              Supplier                       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  status                LeadAssignmentStatus           @default(PENDING_AVAILABILITY)
+  dispatchedAt          DateTime?
+  dispatchedByUserId    String?
+  dispatchedBy          User?                          @relation("LeadAssignmentDispatcher", fields: [dispatchedByUserId], references: [id], onDelete: SetNull)
+  availabilityResponses SupplierAvailabilityResponse[]
+  quotaLedgerEntry      QuotaLedgerEntry?
+  outboxEvents          OutboxEvent[]
+  leadActivities        LeadActivity[]
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+
+  @@unique([enquiryId, supplierId])
+  @@index([status, createdAt])
+  @@index([supplierId, status, createdAt])
+  @@map("lead_assignment")
+}
+
+model SupplierAvailabilityResponse {
+  id               String               @id @default(uuid())
+  leadAssignmentId String
+  leadAssignment   LeadAssignment       @relation(fields: [leadAssignmentId], references: [id], onDelete: Cascade)
+  supplierId       String
+  supplier         Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  enquiryId        String
+  enquiry          Enquiry              @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  response         AvailabilityResponse
+  note             String?
+  actorUserId      String
+  actor            User                 @relation("AvailabilityResponder", fields: [actorUserId], references: [id], onDelete: Restrict)
+  createdAt        DateTime             @default(now())
+
+  @@index([leadAssignmentId, createdAt])
+  @@index([supplierId, createdAt])
+  @@index([enquiryId, createdAt])
+  @@map("supplier_availability_response")
+}
+
+model QuotaLedgerEntry {
+  id               String               @id @default(uuid())
+  supplierId       String
+  supplier         Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  enquiryId        String
+  enquiry          Enquiry              @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  leadAssignmentId String               @unique
+  leadAssignment   LeadAssignment       @relation(fields: [leadAssignmentId], references: [id], onDelete: Restrict)
+  type             QuotaLedgerEntryType
+  actorUserId      String
+  actor            User                 @relation("QuotaLedgerActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  reason           String
+  createdAt        DateTime             @default(now())
+
+  @@index([supplierId, createdAt])
+  @@index([enquiryId, createdAt])
+  @@map("quota_ledger_entry")
+}
+
+model LeadActivity {
+  id               String               @id @default(uuid())
+  enquiryId        String
+  enquiry          Enquiry              @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  leadAssignmentId String?
+  leadAssignment   LeadAssignment?      @relation(fields: [leadAssignmentId], references: [id], onDelete: SetNull)
+  type             LeadActivityType
+  channel          LeadActivityChannel
+  status           LeadActivityStatus   @default(OPEN)
+  outcome          LeadActivityOutcome?
+  summary          String
+  actorUserId      String
+  actor            User                 @relation("LeadActivityActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  occurredAt       DateTime             @default(now())
+  scheduledAt      DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([enquiryId, createdAt])
+  @@index([leadAssignmentId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("lead_activity")
+}
+
+model FunnelEvent {
+  id          String          @id @default(uuid())
+  type        FunnelEventType
+  sessionKey  String
+  source      String          @default("WEBSITE")
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  categoryId  String?
+  category    Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  cityId      String?
+  city        City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  occurredAt  DateTime        @default(now())
+
+  @@index([type, occurredAt])
+  @@index([sessionKey, occurredAt])
+  @@index([utmSource, occurredAt])
+  @@index([categoryId, occurredAt])
+  @@index([cityId, occurredAt])
+  @@map("funnel_event")
+}
+
+model EnquiryRateLimitAttempt {
+  id               String   @id @default(uuid())
+  phoneFingerprint String
+  createdAt        DateTime @default(now())
+
+  @@index([phoneFingerprint, createdAt])
+  @@index([createdAt])
+  @@map("enquiry_rate_limit_attempt")
+}
+
+model OutboxEvent {
+  id               String            @id @default(uuid())
+  idempotencyKey   String            @unique
+  type             OutboxEventType
+  status           OutboxEventStatus @default(PENDING)
+  enquiryId        String
+  enquiry          Enquiry           @relation(fields: [enquiryId], references: [id], onDelete: Restrict)
+  leadAssignmentId String
+  leadAssignment   LeadAssignment    @relation(fields: [leadAssignmentId], references: [id], onDelete: Restrict)
+  payload          Json
+  attempts         Int               @default(0)
+  availableAt      DateTime          @default(now())
+  claimedAt        DateTime?
+  processedAt      DateTime?
+  lastError        String?
+  isSimulation     Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([status, availableAt])
+  @@index([enquiryId, createdAt])
+  @@index([leadAssignmentId, createdAt])
+  @@map("outbox_event")
+}
+
+model AdminAuditEvent {
+  id          String               @id @default(uuid())
+  actorUserId String
+  actor       User                 @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  action      AdminAuditAction
+  entityType  AdminAuditEntityType
+  entityId    String
+  details     Json?
+  createdAt   DateTime             @default(now())
+
+  @@index([createdAt, id])
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@map("admin_audit_event")
+}
