@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { authClient } from '@/lib/auth-client';
-import { buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 export function HomepageAuthActions() {
   const router = useRouter();
@@ -35,13 +33,10 @@ export function HomepageAuthActions() {
       <Link
         href='/login'
         aria-label='Sign in'
-        className={cn(
-          buttonVariants({ variant: 'outline', size: 'lg' }),
-          'shrink-0 rounded-full px-2 sm:px-4'
-        )}
+        className='inline-flex h-10 shrink-0 items-center gap-2 text-sm font-semibold text-[#090f24] transition-colors hover:text-[#135858]'
       >
-        <LogIn aria-hidden='true' />
-        <span className='hidden sm:inline'>Sign in</span>
+        <LogIn aria-hidden='true' className='size-4 sm:hidden' />
+        <span className='hidden sm:inline'>Log In</span>
       </Link>
     );
   }
@@ -52,12 +47,9 @@ export function HomepageAuthActions() {
       onClick={handleSignOut}
       aria-label={isSigningOut ? 'Signing out' : 'Sign out'}
       disabled={isSigningOut}
-      className={cn(
-        buttonVariants({ variant: 'outline', size: 'lg' }),
-        'shrink-0 rounded-full px-2 sm:px-4'
-      )}
+      className='inline-flex h-10 shrink-0 items-center gap-2 text-sm font-semibold text-[#090f24] transition-colors hover:text-[#135858] disabled:opacity-60'
     >
-      <LogOut aria-hidden='true' />
+      <LogOut aria-hidden='true' className='size-4 sm:hidden' />
       <span className='hidden sm:inline'>
         {isSigningOut ? 'Signing out…' : 'Sign out'}
       </span>

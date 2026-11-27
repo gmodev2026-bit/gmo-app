@@ -7,6 +7,7 @@ import { requireAdmin } from '@/server/authorization';
 import { writeAdminAuditEvent } from '@/server/admin/audit';
 import { getAllowedSupplierTransitions } from '@/features/suppliers/status';
 import type { SupplierMutationResult } from '@/features/suppliers/action-state';
+import { deleteBunnyImage, BunnyStorageError } from '@/lib/bunny-storage';
 
 const PAGE_SIZE = 25;
 
@@ -104,6 +105,21 @@ const supplierOwnerLinkSchema = z.object({
   email: z.email().trim().toLowerCase()
 });
 
+const mediaReviewSchema = z.object({
+  mediaAssetId: z.uuid(),
+  decision: z.enum(['approve', 'remove']),
+  reason: z.string().trim().min(5).max(500)
+});
+
+export type SupplierMediaReviewResult =
+  | { success: true; supplierId: string; slug: string }
+  | {
+      success: false;
+      message: string;
+      supplierId?: string;
+      slug?: string;
+    };
+
 export async function listAdminSuppliers(requestedPage: number) {
   await requireAdmin();
 
@@ -183,6 +199,10 @@ export async function getAdminSupplier(id: string) {
       phone: true,
       email: true,
       website: true,
+      isContactNamePublic: true,
+      isPhonePublic: true,
+      isEmailPublic: true,
+      isWebsitePublic: true,
       status: true,
       isVerified: true,
       isIndexable: true,
@@ -233,9 +253,155 @@ export async function getAdminSupplier(id: string) {
           createdAt: true,
           actor: { select: { name: true } }
         }
+      },
+      mediaAssets: {
+        where: { purpose: { in: ['LOGO', 'COVER', 'GALLERY'] } },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          purpose: true,
+          status: true,
+          altText: true,
+          width: true,
+          height: true,
+          byteSize: true,
+          createdAt: true
+        }
       }
     }
   });
+}
+
+export async function reviewAdminSupplierMedia(
+  formData: FormData
+): Promise<SupplierMediaReviewResult> {
+  const actor = await requireAdmin();
+  const parsed = mediaReviewSchema.safeParse({
+    mediaAssetId: formData.get('mediaAssetId'),
+    decision: formData.get('decision'),
+    reason: formData.get('reason')
+  });
+  if (!parsed.success) {
+    return { success: false, message: 'Review the image action and reason.' };
+  }
+
+  const media = await prisma.mediaAsset.findUnique({
+    where: { id: parsed.data.mediaAssetId },
+    select: {
+      id: true,
+      supplierId: true,
+      objectKey: true,
+      purpose: true,
+      status: true,
+      supplier: { select: { slug: true } }
+    }
+  });
+  if (!media || media.purpose === 'VERIFICATION_DOCUMENT') {
+    return { success: false, message: 'Supplier image not found.' };
+  }
+
+  if (parsed.data.decision === 'approve' && media.status !== 'PENDING') {
+    return {
+      success: false,
+      message: 'Only pending images can be approved.',
+      supplierId: media.supplierId,
+      slug: media.supplier.slug
+    };
+  }
+  if (
+    parsed.data.decision === 'remove' &&
+    !['PENDING', 'READY', 'FAILED', 'REMOVED'].includes(media.status)
+  ) {
+    return {
+      success: false,
+      message: 'This image cannot be removed.',
+      supplierId: media.supplierId,
+      slug: media.supplier.slug
+    };
+  }
+
+  const updated = await prisma.$transaction(async (transaction) => {
+    const current = await transaction.mediaAsset.findUnique({
+      where: { id: media.id },
+      select: { status: true }
+    });
+    if (!current) {
+      return { success: false as const, message: 'Supplier image not found.' };
+    }
+
+    const nextStatus =
+      parsed.data.decision === 'approve' ? 'READY' : 'REMOVED';
+    const allowedStatuses =
+      parsed.data.decision === 'approve'
+        ? ['PENDING']
+        : ['PENDING', 'READY', 'FAILED', 'REMOVED'];
+    if (!allowedStatuses.includes(current.status)) {
+      return {
+        success: false as const,
+        message: 'The image status changed. Refresh and review it again.'
+      };
+    }
+
+    if (current.status !== nextStatus) {
+      await transaction.mediaAsset.update({
+        where: { id: media.id },
+        data: { status: nextStatus }
+      });
+    }
+
+    await writeAdminAuditEvent(transaction, {
+      actorUserId: actor.id,
+      action: 'SUPPLIER_MEDIA_REVIEWED',
+      entityType: 'SUPPLIER',
+      entityId: media.supplierId,
+      details: {
+        mediaAssetId: media.id,
+        purpose: media.purpose,
+        fromStatus: current.status,
+        toStatus: nextStatus,
+        reason: parsed.data.reason
+      }
+    });
+
+    return { success: true as const };
+  });
+
+  if (!updated.success) {
+    return {
+      success: false,
+      message: updated.message,
+      supplierId: media.supplierId,
+      slug: media.supplier.slug
+    };
+  }
+
+  if (parsed.data.decision === 'remove') {
+    try {
+      await deleteBunnyImage(media.objectKey);
+    } catch (error) {
+      if (error instanceof BunnyStorageError) {
+        console.error('Removed supplier image could not be deleted from Bunny:', {
+          mediaAssetId: media.id,
+          error: error.message
+        });
+      } else {
+        throw error;
+      }
+      return {
+        success: false,
+        message:
+          'The image is no longer visible, but Bunny storage cleanup failed. Retry cleanup after checking storage availability.',
+        supplierId: media.supplierId,
+        slug: media.supplier.slug
+      };
+    }
+  }
+
+  return {
+    success: true,
+    supplierId: media.supplierId,
+    slug: media.supplier.slug
+  };
 }
 
 export async function linkAdminSupplierOwner(

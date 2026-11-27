@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Source of truth:** `GrowMeOnline_Full_Stack_Architect_Skill_v2.6.md`  
-**Planning snapshot:** 26 November 2026
+**Planning snapshot:** 27 November 2026
 
 This plan turns the v2.6 committed scope into repository-specific workstreams. It covers the existing enquiry pilot plus the connected supplier and client account experience. It does not authorize production deployment, live customer data, payment collection, or unapproved third-party messaging.
 
@@ -23,9 +23,9 @@ This plan turns the v2.6 committed scope into repository-specific workstreams. I
 
 ### Main v2.6 gaps
 
-- Supplier change-request feedback and resubmission acceptance coverage remain incomplete.
-- Real supplier media upload/storage remains unavailable pending provider approval.
-- Public supplier pages still need field-level contact visibility, approved media, social-sharing assets and fuller acceptance coverage.
+- Supplier change-request feedback, guarded resubmission, and owner audit events are implemented; authenticated browser acceptance remains incomplete.
+- The development Bunny upload/storage path and media moderation are implemented. Production uploads remain disabled, and end-to-end moderation/cleanup acceptance is still outstanding.
+- Public supplier contact visibility is supplier-controlled per field and private by default. Approved media, social-sharing assets and richer discovery still need fuller acceptance.
 - No provider-backed subscription/payment implementation; current quota only enforces the free-pilot limit.
 - A complete client registration/verification journey still needs a real email-provider smoke test and broader account-security coverage.
 
@@ -68,7 +68,7 @@ Workstreams are ordered by dependency. Independent documentation and policy work
 1. Reuse the current `Supplier` model and owner relation; add only fields needed by the approved profile/onboarding design.
 2. Implement supplier onboarding as a mobile-first draft, review, changes-requested, resubmit, and approved lifecycle.
 3. Allow only an authenticated, verified account to create or edit its own supplier profile. Derive owner identity from the session, never from a submitted owner ID.
-4. Validate business name/slug, contact visibility, categories, service areas, offerings, and links on the server.
+4. Validate business name/slug, categories, service areas, offerings, and links on the server. Keep contact name, phone, email, and website private unless the supplier explicitly opts in per field; all visibility flags default to false.
 5. Prevent suppliers from setting approval, verification, featured, or indexability state.
 6. Keep verification notes and evidence private; public badge text must describe only checks actually completed.
 7. Preserve and adapt existing admin account linking and supplier administration rather than introducing a second ownership path.
@@ -93,11 +93,12 @@ Workstreams are ordered by dependency. Independent documentation and policy work
 **Depends on:** Supplier ownership and profile lifecycle. Public uploads additionally depend on an approved storage provider.
 
 1. Add canonical supplier offerings and media metadata only after checking existing schema and defining ownership/deletion semantics.
-2. Select Cloudflare R2 or another product-owner-approved S3-compatible service before enabling real uploads.
-3. Implement short-lived upload authorization, ownership and purpose checks, size/dimension limits, actual file-type validation, random object keys, and public/private delivery policies.
-4. Store media bytes outside PostgreSQL; store metadata and stable object keys in PostgreSQL.
-5. Support safe replacement, removal, orphan cleanup, alt text, responsive variants, and private verification documents.
-6. Keep uploads disabled until provider credentials, retention, moderation, and privacy requirements are approved.
+2. Bunny Storage is selected for development/testing. The implemented path uses the server-mediated regional HTTP Storage API, so S3 compatibility is not required and the storage password never reaches the browser.
+3. Public and private images are delivered through an application route that authorizes public access only for `READY` images on eligible suppliers; owners/admins can privately preview pending images. A Pull Zone/CDN is optional and must not bypass these checks.
+4. Require verified-owner authentication, same-origin requests, purpose/ownership checks, rate limits, bounded request sizes, actual file-type validation, server-side image re-encoding, random object keys, and private-by-default delivery.
+5. Store media bytes outside PostgreSQL; store metadata and stable object keys in PostgreSQL.
+6. Support safe replacement, removal, failed-upload cleanup, and alt text. Private pending-media delivery is restricted to the owner/admin; public delivery requires a ready asset and eligible supplier. Keep verification documents outside this public-image flow until a dedicated private-storage and access policy is implemented; scheduled orphan reconciliation remains outstanding.
+7. Keep production uploads disabled by default until provider access, delivery, retention, moderation, and privacy requirements are approved. Local development can opt in with `BUNNY_MEDIA_UPLOADS_ENABLED=true`.
 
 **Exit:** Owners can manage only their own allowed public media; private evidence is never publicly addressable; failed and orphaned uploads are safely handled.
 
@@ -107,7 +108,7 @@ Workstreams are ordered by dependency. Independent documentation and policy work
 
 1. Extend the existing `/b/[slug]` page rather than creating duplicate public profile routes.
 2. Render only approved, verified, active, non-deleted suppliers and approved public fields.
-3. Add public contact controls, categories, service areas, offerings, hours/social links only when configured and truthful.
+3. Add categories, service areas, offerings, and hours/social links only when configured and truthful. Render contact name, phone, email, and website only when their per-field supplier opt-in is enabled.
 4. Add accurate metadata, canonical URLs, Open Graph, truthful JSON-LD, breadcrumbs, responsive images, and sitemap eligibility.
 5. Add explicit indexability controls separate from approval; pending, suspended, preview, thin, or non-indexable pages must not leak through metadata, JSON-LD, sitemap, or cache.
 6. Preserve old URLs safely when a slug changes; do not generate thin location/category doorway pages.
@@ -160,7 +161,7 @@ These are not engineering defaults. Resolve them before activating the dependent
 
 - Supplier verification evidence, badge wording, review SLA, and which profile edits require re-review.
 - Public field/contact visibility, business-hours verification, media rights/moderation, and media retention.
-- Storage provider and delivery/CDN configuration.
+- Public/private media delivery, moderation, retention and deletion policies. Bunny is selected for development; Pull Zone/CDN configuration remains open.
 - Guest-to-account ownership proof and client data retention/deletion process.
 - Category/location source of truth and who may maintain it.
 - Privacy notices, consent wording, lawful communication channels, retention, and South African privacy/legal review.
@@ -180,3 +181,14 @@ Do not block independent account/profile work while a provider decision is open.
 ## 5. Completion evidence
 
 Use the v2.6 acceptance matrix in Sections 39-40. Record implementation evidence, migration impact, test commands, blockers, and the next dependency in `docs/IMPLEMENTATION-STATUS.md`. Update this plan only when an accepted product decision changes scope or dependency order.
+
+## 6. Public blog and homepage content
+
+**Status:** Delivered as a seed-managed, read-only blog.
+
+- Store the four existing published articles as structured Prisma records and seed by slug so repeated seed runs are safe.
+- Serve published content only through `/blog`, category filters, article detail pages, and the sitemap.
+- Keep article rendering structured and validated; include canonical metadata, Article JSON-LD, and local navigation.
+- Use the homepage feature section to describe the actual marketplace and link to local published articles.
+
+**Remaining decision:** There is no admin authoring CMS. Before adding one, agree on author roles, draft review, preview, publishing/unpublishing, and media management.

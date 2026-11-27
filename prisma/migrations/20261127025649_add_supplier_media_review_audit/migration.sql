@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AdminAuditAction" ADD VALUE 'SUPPLIER_MEDIA_REVIEWED';

@@ -31,9 +31,19 @@ This document records the checked-in runtime foundation. Update it when dependen
 - Public site origin: `NEXT_PUBLIC_BASE_URL` or `BETTER_AUTH_URL`
 - Railway healthcheck and migration startup are configured in `railway.toml`
 
+## Media storage
+
+- Bunny Storage has been selected for development/testing supplier media.
+- Supplier media uses Bunny's regional HTTP Storage API from server-only code; the storage password is never sent to the browser. S3 compatibility and a Pull Zone are not required for this server-proxied delivery path.
+- Local Bunny configuration is stored in the ignored `.env`; never copy its secret values into source control or documentation.
+- Browser compression and server-side Sharp decoding/re-encoding produce bounded WebP images. Uploads require an email-verified supplier owner, are private while pending, and require admin approval before public delivery.
+- Public images are served through an authorization-aware application route. Pending media is available only to its owner and admins; verification documents are excluded from this flow.
+- `BUNNY_MEDIA_UPLOADS_ENABLED` must be explicitly set to `true`; it is disabled by default in environments without that setting. Keep production uploads disabled until privacy, media rights, retention, and deletion policies are approved.
+- A Bunny Pull Zone/CDN can be considered later to reduce application bandwidth. Orphan reconciliation and a documented retention/deletion policy remain open.
+
 ## Quality commands
 
-- `npm test`: fourteen focused unit tests
+- `npm test`: sixteen focused unit tests
 - `npm run lint`: Oxlint
 - `npm exec tsc -- --noEmit`: TypeScript type-check
 - `npm run build`: Prisma generation plus the Next.js production build

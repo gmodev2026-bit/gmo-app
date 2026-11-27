@@ -7,6 +7,7 @@ import {
   PILOT_CITIES,
   PILOT_PROVINCE
 } from '../src/features/enquiries/pilot-catalog';
+import { BLOG_POST_SEEDS } from './blog-posts';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg(
@@ -69,9 +70,24 @@ async function seedPilotCatalog() {
   }
 }
 
-seedPilotCatalog()
+async function seedBlogPosts() {
+  for (const post of BLOG_POST_SEEDS) {
+    await prisma.blogPost.upsert({
+      where: { slug: post.slug },
+      update: post,
+      create: post
+    });
+  }
+}
+
+async function seed() {
+  await seedPilotCatalog();
+  await seedBlogPosts();
+}
+
+seed()
   .catch((error: unknown) => {
-    console.error('Failed to seed the GrowMeOnline pilot catalog:', error);
+    console.error('Failed to seed GrowMeOnline data:', error);
     process.exitCode = 1;
   })
   .finally(async () => {

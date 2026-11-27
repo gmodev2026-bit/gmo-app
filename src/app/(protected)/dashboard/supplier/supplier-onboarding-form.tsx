@@ -4,10 +4,12 @@ import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import { SupplierMediaManager } from '@/components/dashboard/supplier-media-manager';
 import {
   saveSupplierDraftAction,
   submitSupplierProfileAction
 } from './actions';
+import { SupplierContactVisibilityForm } from './supplier-contact-visibility-form';
 
 type OnboardingSupplier = {
   id: string;
@@ -20,6 +22,10 @@ type OnboardingSupplier = {
   phone: string;
   email: string | null;
   website: string | null;
+  isContactNamePublic: boolean;
+  isPhonePublic: boolean;
+  isEmailPublic: boolean;
+  isWebsitePublic: boolean;
   status:
     | 'DRAFT'
     | 'PENDING_APPROVAL'
@@ -35,6 +41,17 @@ type OnboardingSupplier = {
   }>;
   serviceAreas: Array<{ cityId: string }>;
   offerings: Array<{ name: string }>;
+  reviewHistory: Array<{ reason: string }>;
+  mediaAssets: Array<{
+    id: string;
+    purpose: 'LOGO' | 'COVER' | 'GALLERY' | 'VERIFICATION_DOCUMENT';
+    status: 'PENDING' | 'READY' | 'REMOVED' | 'FAILED';
+    altText: string | null;
+    width: number | null;
+    height: number | null;
+    byteSize: number;
+    createdAt: Date;
+  }>;
 };
 
 type ActionState = {
@@ -88,6 +105,23 @@ export function SupplierOnboardingForm({
           </span>
         </div>
       )}
+      {supplier?.status === 'CHANGES_REQUESTED' &&
+        supplier.reviewHistory[0] && (
+          <section
+            aria-labelledby='supplier-changes-requested'
+            className='rounded-xl border border-amber-500/30 bg-amber-500/5 p-4'
+          >
+            <h2
+              id='supplier-changes-requested'
+              className='font-semibold'
+            >
+              Changes requested
+            </h2>
+            <p className='text-muted-foreground mt-2 text-sm'>
+              {supplier.reviewHistory[0].reason}
+            </p>
+          </section>
+        )}
       {supplier &&
         (isPublic ? (
           <Link
@@ -140,7 +174,7 @@ export function SupplierOnboardingForm({
                 <option value='HYBRID'>Hybrid</option>
               </select>
             </Field>
-            <Field label='Public contact name' htmlFor='contactName'>
+            <Field label='Contact name' htmlFor='contactName'>
               <Input
                 id='contactName'
                 name='contactName'
@@ -193,7 +227,7 @@ export function SupplierOnboardingForm({
                 maxLength={30}
               />
             </Field>
-            <Field label='Public email' htmlFor='email'>
+            <Field label='Email' htmlFor='email'>
               <Input
                 id='email'
                 name='email'
@@ -305,6 +339,26 @@ export function SupplierOnboardingForm({
         </form>
       )}
 
+      {supplier ? (
+        <SupplierContactVisibilityForm
+          preferences={{
+            isContactNamePublic: supplier.isContactNamePublic,
+            isPhonePublic: supplier.isPhonePublic,
+            isEmailPublic: supplier.isEmailPublic,
+            isWebsitePublic: supplier.isWebsitePublic
+          }}
+          status={supplier.status}
+        />
+      ) : (
+        <section className='border-border rounded-2xl border p-5'>
+          <h2 className='font-semibold'>Public contact details</h2>
+          <p className='text-muted-foreground mt-2 text-sm'>
+            Save your supplier profile first. Contact name, phone, email, and
+            website are private unless you opt in to show each field publicly.
+          </p>
+        </section>
+      )}
+
       {submitState.message && (
         <p
           aria-live='polite'
@@ -316,6 +370,21 @@ export function SupplierOnboardingForm({
         >
           {submitState.message}
         </p>
+      )}
+
+      {supplier ? (
+        <SupplierMediaManager
+          supplierName={supplier.businessName}
+          status={supplier.status}
+          mediaAssets={supplier.mediaAssets}
+        />
+      ) : (
+        <section className='border-border rounded-2xl border p-5'>
+          <h2 className='font-semibold'>Business images</h2>
+          <p className='text-muted-foreground mt-2 text-sm'>
+            Save your supplier profile as a draft before adding images.
+          </p>
+        </section>
       )}
     </div>
   );

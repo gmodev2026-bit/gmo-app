@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getAllowedSupplierTransitions } from './status';
+import {
+  canEditSupplierProfile,
+  getAllowedSupplierTransitions
+} from './status';
 
 describe('supplier status transitions', () => {
   it('does not let a draft supplier skip submission and approval', () => {
@@ -21,5 +24,13 @@ describe('supplier status transitions', () => {
     assert.deepEqual(getAllowedSupplierTransitions('SUSPENDED'), [
       'PENDING_APPROVAL'
     ]);
+  });
+
+  it('only allows profile edits in statuses that can be resubmitted', () => {
+    assert.equal(canEditSupplierProfile('DRAFT'), true);
+    assert.equal(canEditSupplierProfile('CHANGES_REQUESTED'), true);
+    assert.equal(canEditSupplierProfile('SUSPENDED'), true);
+    assert.equal(canEditSupplierProfile('PENDING_APPROVAL'), false);
+    assert.equal(canEditSupplierProfile('APPROVED'), false);
   });
 });

@@ -5,6 +5,10 @@ import prisma from '@/lib/prisma';
 import { isAuthenticated } from '@/server/user';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import {
+  canEditSupplierProfile,
+  getAllowedSupplierTransitions
+} from '@/features/suppliers/status';
 
 const supplierDraftSchema = z
   .object({
@@ -97,6 +101,10 @@ export async function getSupplierPortalProfile() {
       phone: true,
       email: true,
       website: true,
+      isContactNamePublic: true,
+      isPhonePublic: true,
+      isEmailPublic: true,
+      isWebsitePublic: true,
       status: true,
       isVerified: true,
       isActive: true,
@@ -123,6 +131,26 @@ export async function getSupplierPortalProfile() {
         where: { isActive: true },
         select: { id: true, name: true, description: true, sortOrder: true },
         orderBy: { sortOrder: 'asc' }
+      },
+      reviewHistory: {
+        where: { toStatus: 'CHANGES_REQUESTED' },
+        select: { reason: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1
+      },
+      mediaAssets: {
+        where: { purpose: { in: ['LOGO', 'COVER', 'GALLERY'] } },
+        select: {
+          id: true,
+          purpose: true,
+          status: true,
+          altText: true,
+          width: true,
+          height: true,
+          byteSize: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' }
       }
     }
   });
@@ -204,71 +232,93 @@ export async function saveSupplierDraft(formData: FormData) {
     };
   }
 
-  const existing = await prisma.supplier.findUnique({
-    where: { ownerUserId },
-    select: { id: true, status: true, slug: true }
-  });
-
-  if (existing && existing.status === 'PENDING_APPROVAL') {
-    return {
-      status: 'error' as const,
-      message: 'This profile is awaiting review and cannot be edited.'
-    };
-  }
-  if (existing && existing.status === 'APPROVED') {
-    return {
-      status: 'error' as const,
-      message: 'Approved profile edits require an admin review workflow.'
-    };
-  }
-
   const values = parsed.data;
+  const profileData = {
+    businessName: values.businessName,
+    slug: values.slug,
+    businessType: values.businessType,
+    tagline: values.tagline || null,
+    description: values.description || null,
+    contactName: values.contactName || null,
+    phone: values.phone,
+    email: values.email || null,
+    website: values.website || null
+  };
+
   try {
-    await prisma.$transaction(async (transaction) => {
-      const supplier = await transaction.supplier.upsert({
+    const result = await prisma.$transaction(async (transaction) => {
+      const existing = await transaction.supplier.findUnique({
         where: { ownerUserId },
-        create: {
-          ownerUserId,
-          businessName: values.businessName,
-          slug: values.slug,
-          businessType: values.businessType,
-          tagline: values.tagline || null,
-          description: values.description || null,
-          contactName: values.contactName || null,
-          phone: values.phone,
-          email: values.email || null,
-          website: values.website || null,
-          status: 'DRAFT'
-        },
-        update: {
-          businessName: values.businessName,
-          slug: values.slug,
-          businessType: values.businessType,
-          tagline: values.tagline || null,
-          description: values.description || null,
-          contactName: values.contactName || null,
-          phone: values.phone,
-          email: values.email || null,
-          website: values.website || null
-        },
-        select: { id: true }
+        select: { id: true, status: true, slug: true, deletedAt: true }
       });
 
-      if (existing?.slug && existing.slug !== values.slug) {
+      let supplierId: string;
+      let previousSlug: string | null = null;
+      let eventType: 'SUPPLIER_CREATED' | 'PROFILE_UPDATED';
+
+      if (existing) {
+        if (existing.deletedAt) {
+          return {
+            status: 'error' as const,
+            message: 'This supplier profile is no longer available.'
+          };
+        }
+        if (!canEditSupplierProfile(existing.status)) {
+          return {
+            status: 'error' as const,
+            message:
+              existing.status === 'PENDING_APPROVAL'
+                ? 'This profile is awaiting review and cannot be edited.'
+                : 'Approved profile edits require an admin review workflow.'
+          };
+        }
+
+        const updated = await transaction.supplier.updateMany({
+          where: {
+            id: existing.id,
+            status: existing.status,
+            deletedAt: null
+          },
+          data: profileData
+        });
+        if (updated.count !== 1) {
+          return {
+            status: 'error' as const,
+            message:
+              'The supplier profile changed while you were editing. Reload and try again.'
+          };
+        }
+        supplierId = existing.id;
+        previousSlug = existing.slug;
+        eventType = 'PROFILE_UPDATED';
+      } else {
+        const supplier = await transaction.supplier.create({
+          data: {
+            ownerUserId,
+            ...profileData,
+            status: 'DRAFT'
+          },
+          select: { id: true }
+        });
+        supplierId = supplier.id;
+        eventType = 'SUPPLIER_CREATED';
+      }
+
+      if (previousSlug && previousSlug !== values.slug) {
         await transaction.supplierSlugHistory.create({
-          data: { supplierId: supplier.id, slug: existing.slug }
+          data: { supplierId, slug: previousSlug }
         });
       }
 
       await transaction.supplierCategory.deleteMany({
-        where: { supplierId: supplier.id }
+        where: { supplierId }
       });
       await transaction.supplierServiceArea.deleteMany({
-        where: { supplierId: supplier.id }
+        where: { supplierId }
       });
       await transaction.supplierCategory.createMany({
         data: values.categoryIds.map((categoryId) => ({
-          supplierId: supplier.id,
+          supplierId,
           categoryId,
           isPrimary: categoryId === values.primaryCategoryId,
           isConfirmed: false
@@ -276,14 +326,14 @@ export async function saveSupplierDraft(formData: FormData) {
       });
       await transaction.supplierServiceArea.createMany({
         data: values.cityIds.map((cityId) => ({
-          supplierId: supplier.id,
+          supplierId,
           cityId,
           isConfirmed: false,
           isActive: true
         }))
       });
       await transaction.supplierOffering.deleteMany({
-        where: { supplierId: supplier.id }
+        where: { supplierId }
       });
       const offeringNames = values.offerings
         .split('\n')
@@ -293,16 +343,33 @@ export async function saveSupplierDraft(formData: FormData) {
       if (offeringNames.length > 0) {
         await transaction.supplierOffering.createMany({
           data: offeringNames.map((name, index) => ({
-            supplierId: supplier.id,
+            supplierId,
             name: name.slice(0, 160),
             sortOrder: index,
             isActive: true
           }))
         });
       }
+
+      await transaction.supplierReviewEvent.create({
+        data: {
+          supplierId,
+          actorUserId: ownerUserId,
+          type: eventType,
+          reason:
+            eventType === 'SUPPLIER_CREATED'
+              ? 'Supplier created a profile draft.'
+              : 'Supplier saved profile draft changes.',
+          details: { source: 'SUPPLIER_PORTAL' }
+        }
+      });
+
+      return { status: 'success' as const };
     });
 
+    if (result.status === 'error') return result;
     revalidatePath('/dashboard/supplier');
+    revalidatePath('/admin/suppliers');
     return { status: 'success' as const, message: 'Draft saved.' };
   } catch (error) {
     if (
@@ -328,46 +395,72 @@ export async function submitSupplierProfile() {
       message: 'Verify your email before submitting a supplier profile.'
     };
 
-  const supplier = await prisma.supplier.findUnique({
-    where: { ownerUserId },
-    select: {
-      id: true,
-      status: true,
-      businessName: true,
-      phone: true,
-      slug: true,
-      categories: { select: { categoryId: true } },
-      serviceAreas: { select: { cityId: true } }
+  const result = await prisma.$transaction(async (transaction) => {
+    const supplier = await transaction.supplier.findFirst({
+      where: {
+        ownerUserId,
+        deletedAt: null,
+        AND: [
+          { slug: { not: { startsWith: 'simulation-' } } },
+          { slug: { not: { startsWith: 'test-only-' } } }
+        ]
+      },
+      select: {
+        id: true,
+        status: true,
+        categories: { select: { categoryId: true } },
+        serviceAreas: { select: { cityId: true } }
+      }
+    });
+
+    if (!supplier) {
+      return {
+        status: 'error' as const,
+        message: 'Save a draft before submitting.'
+      };
     }
-  });
+    if (supplier.status === 'PENDING_APPROVAL') {
+      return {
+        status: 'success' as const,
+        message: 'Profile is already pending review.'
+      };
+    }
+    if (
+      !getAllowedSupplierTransitions(supplier.status).includes(
+        'PENDING_APPROVAL'
+      )
+    ) {
+      return {
+        status: 'error' as const,
+        message:
+          supplier.status === 'APPROVED'
+            ? 'This profile is already approved.'
+            : 'This profile cannot be submitted for review.'
+      };
+    }
+    if (!supplier.categories.length || !supplier.serviceAreas.length) {
+      return {
+        status: 'error' as const,
+        message: 'Select at least one category and service area.'
+      };
+    }
 
-  if (!supplier)
-    return {
-      status: 'error' as const,
-      message: 'Save a draft before submitting.'
-    };
-  if (supplier.status === 'PENDING_APPROVAL')
-    return {
-      status: 'success' as const,
-      message: 'Profile is already pending review.'
-    };
-  if (supplier.status === 'APPROVED')
-    return {
-      status: 'error' as const,
-      message: 'This profile is already approved.'
-    };
-  if (!supplier.categories.length || !supplier.serviceAreas.length) {
-    return {
-      status: 'error' as const,
-      message: 'Select at least one category and service area.'
-    };
-  }
-
-  await prisma.$transaction(async (transaction) => {
-    await transaction.supplier.update({
-      where: { id: supplier.id },
+    const updated = await transaction.supplier.updateMany({
+      where: {
+        id: supplier.id,
+        status: supplier.status,
+        deletedAt: null
+      },
       data: { status: 'PENDING_APPROVAL' }
     });
+    if (updated.count !== 1) {
+      return {
+        status: 'error' as const,
+        message:
+          'The supplier profile changed while you were submitting. Reload and try again.'
+      };
+    }
+
     await transaction.supplierReviewEvent.create({
       data: {
         supplierId: supplier.id,
@@ -378,12 +471,149 @@ export async function submitSupplierProfile() {
         reason: 'Supplier submitted the business profile for admin review.'
       }
     });
+    return {
+      status: 'success' as const,
+      message: 'Profile submitted for review.'
+    };
   });
 
   revalidatePath('/dashboard/supplier');
   revalidatePath('/admin/suppliers');
-  return {
-    status: 'success' as const,
-    message: 'Profile submitted for review.'
-  };
+  return result;
+}
+
+const supplierContactVisibilitySchema = z.object({
+  isContactNamePublic: z.boolean(),
+  isPhonePublic: z.boolean(),
+  isEmailPublic: z.boolean(),
+  isWebsitePublic: z.boolean()
+});
+
+export async function saveSupplierContactVisibility(formData: FormData) {
+  const ownerUserId = await requireVerifiedOwner();
+  if (!ownerUserId) {
+    return {
+      status: 'error' as const,
+      message: 'Verify your email before changing public contact preferences.'
+    };
+  }
+
+  const parsed = supplierContactVisibilitySchema.safeParse({
+    isContactNamePublic: formData.get('isContactNamePublic') === 'on',
+    isPhonePublic: formData.get('isPhonePublic') === 'on',
+    isEmailPublic: formData.get('isEmailPublic') === 'on',
+    isWebsitePublic: formData.get('isWebsitePublic') === 'on'
+  });
+  if (!parsed.success) {
+    return {
+      status: 'error' as const,
+      message: 'Choose valid public contact preferences.'
+    };
+  }
+
+  const result = await prisma.$transaction(async (transaction) => {
+    const supplier = await transaction.supplier.findFirst({
+      where: {
+        ownerUserId,
+        deletedAt: null,
+        AND: [
+          { slug: { not: { startsWith: 'simulation-' } } },
+          { slug: { not: { startsWith: 'test-only-' } } }
+        ]
+      },
+      select: {
+        id: true,
+        slug: true,
+        status: true,
+        isContactNamePublic: true,
+        isPhonePublic: true,
+        isEmailPublic: true,
+        isWebsitePublic: true
+      }
+    });
+    if (!supplier) {
+      return {
+        status: 'error' as const,
+        message: 'Save a supplier profile before changing contact preferences.'
+      };
+    }
+
+    const updatedPreferences = parsed.data;
+    if (
+      supplier.status === 'PENDING_APPROVAL' &&
+      ((updatedPreferences.isContactNamePublic &&
+        !supplier.isContactNamePublic) ||
+        (updatedPreferences.isPhonePublic && !supplier.isPhonePublic) ||
+        (updatedPreferences.isEmailPublic && !supplier.isEmailPublic) ||
+        (updatedPreferences.isWebsitePublic && !supplier.isWebsitePublic))
+    ) {
+      return {
+        status: 'error' as const,
+        message:
+          'You can hide contact details while review is pending, but wait for the review outcome before making new details public.'
+      };
+    }
+
+    const changed =
+      supplier.isContactNamePublic !==
+        updatedPreferences.isContactNamePublic ||
+      supplier.isPhonePublic !== updatedPreferences.isPhonePublic ||
+      supplier.isEmailPublic !== updatedPreferences.isEmailPublic ||
+      supplier.isWebsitePublic !== updatedPreferences.isWebsitePublic;
+    if (!changed) {
+      return {
+        status: 'success' as const,
+        message: 'Public contact preferences are unchanged.'
+      };
+    }
+
+    const updated = await transaction.supplier.updateMany({
+      where: {
+        id: supplier.id,
+        ownerUserId,
+        deletedAt: null,
+        status: supplier.status,
+        isContactNamePublic: supplier.isContactNamePublic,
+        isPhonePublic: supplier.isPhonePublic,
+        isEmailPublic: supplier.isEmailPublic,
+        isWebsitePublic: supplier.isWebsitePublic
+      },
+      data: updatedPreferences
+    });
+    if (updated.count !== 1) {
+      return {
+        status: 'error' as const,
+        message:
+          'Your contact preferences changed in another session. Reload and try again.'
+      };
+    }
+
+    await transaction.supplierReviewEvent.create({
+      data: {
+        supplierId: supplier.id,
+        actorUserId: ownerUserId,
+        type: 'PROFILE_UPDATED',
+        reason: 'Supplier changed public contact visibility preferences.',
+        details: {
+          source: 'SUPPLIER_PORTAL',
+          publicContactVisibility: updatedPreferences
+        }
+      }
+    });
+
+    return {
+      status: 'success' as const,
+      message: 'Public contact preferences saved.'
+    };
+  });
+
+  if (result.status === 'success') {
+    revalidatePath('/dashboard/supplier');
+    const supplier = await prisma.supplier.findUnique({
+      where: { ownerUserId },
+      select: { slug: true }
+    });
+    if (supplier) revalidatePath(`/b/${supplier.slug}`);
+  }
+  return result;
 }

@@ -1,8 +1,9 @@
 import 'server-only';
 
 import prisma from '@/lib/prisma';
+import { filterPublicSupplierContacts } from '@/features/suppliers/public-contact';
 
-const PUBLIC_SUPPLIER_WHERE = {
+export const PUBLIC_SUPPLIER_WHERE = {
   deletedAt: null,
   isActive: true,
   status: 'APPROVED' as const,
@@ -13,6 +14,10 @@ const PUBLIC_SUPPLIER_WHERE = {
     { slug: { not: { startsWith: 'test-only-' } } }
   ]
 };
+
+export async function countPublicSuppliers() {
+  return prisma.supplier.count({ where: PUBLIC_SUPPLIER_WHERE });
+}
 
 export async function listPublicSupplierCategories() {
   return prisma.category.findMany({
@@ -142,7 +147,7 @@ export async function listPublicSuppliers({
 }
 
 export async function getPublicSupplier(slug: string) {
-  return prisma.supplier.findFirst({
+  const supplier = await prisma.supplier.findFirst({
     where: {
       slug,
       ...PUBLIC_SUPPLIER_WHERE
@@ -153,9 +158,14 @@ export async function getPublicSupplier(slug: string) {
       slug: true,
       tagline: true,
       description: true,
+      contactName: true,
       website: true,
       phone: true,
       email: true,
+      isContactNamePublic: true,
+      isPhonePublic: true,
+      isEmailPublic: true,
+      isWebsitePublic: true,
       categories: {
         where: { isConfirmed: true },
         select: {
@@ -182,9 +192,47 @@ export async function getPublicSupplier(slug: string) {
         where: { isActive: true },
         select: { id: true, name: true, description: true },
         orderBy: { sortOrder: 'asc' }
+      },
+      mediaAssets: {
+        where: {
+          status: 'READY',
+          purpose: { in: ['LOGO', 'COVER', 'GALLERY'] }
+        },
+        select: {
+          id: true,
+          purpose: true,
+          altText: true,
+          width: true,
+          height: true
+        },
+        orderBy: { createdAt: 'asc' }
       }
     }
   });
+
+  if (!supplier) return null;
+
+  const {
+    isContactNamePublic,
+    isPhonePublic,
+    isEmailPublic,
+    isWebsitePublic,
+    ...publicSupplier
+  } = supplier;
+
+  return {
+    ...publicSupplier,
+    ...filterPublicSupplierContacts({
+      contactName: supplier.contactName,
+      phone: supplier.phone,
+      email: supplier.email,
+      website: supplier.website,
+      isContactNamePublic,
+      isPhonePublic,
+      isEmailPublic,
+      isWebsitePublic
+    })
+  };
 }
 
 export async function listPublicSupplierSlugs() {
