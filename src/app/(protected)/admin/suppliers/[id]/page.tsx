@@ -14,6 +14,7 @@ import { SupplierForm } from '../supplier-form';
 import { SupplierReviewForm } from '../supplier-review-form';
 import { SupplierOwnerLinkForm } from '../supplier-owner-link-form';
 import { SupplierStatusBadge } from '../status-badge';
+import { SupplierMediaReview } from './media-review';
 
 type RouteParams = Promise<{ id: string }>;
 
@@ -134,6 +135,23 @@ async function SupplierDetail({ params }: { params: RouteParams }) {
           </section>
 
           <section className='border-border bg-card rounded-2xl border p-5 sm:p-6'>
+            <h2 className='text-lg font-semibold'>Public contact preferences</h2>
+            <p className='text-muted-foreground mt-1 text-sm'>
+              Contact fields stay private unless the supplier opts in.
+            </p>
+            <dl className='mt-4 grid grid-cols-2 gap-2 text-sm'>
+              <dt>Contact name</dt>
+              <dd>{supplier.isContactNamePublic ? 'Public' : 'Private'}</dd>
+              <dt>Phone</dt>
+              <dd>{supplier.isPhonePublic ? 'Public' : 'Private'}</dd>
+              <dt>Email</dt>
+              <dd>{supplier.isEmailPublic ? 'Public' : 'Private'}</dd>
+              <dt>Website</dt>
+              <dd>{supplier.isWebsitePublic ? 'Public' : 'Private'}</dd>
+            </dl>
+          </section>
+
+          <section className='border-border bg-card rounded-2xl border p-5 sm:p-6'>
             <h2 className='text-lg font-semibold'>Supplier account</h2>
             <p className='text-muted-foreground mt-1 mb-5 text-sm'>
               Link an existing email-verified user account. This does not
@@ -191,6 +209,7 @@ async function SupplierDetail({ params }: { params: RouteParams }) {
           </section>
         </aside>
       </div>
+      <SupplierMediaReview mediaAssets={supplier.mediaAssets} />
     </main>
   );
 }

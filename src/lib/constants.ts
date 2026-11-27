@@ -1,6 +1,6 @@
 export const SITE_NAME = 'GrowMeOnline';
 export const SITE_TAGLINE =
-  'Find a local pro for your next home project. Requests are reviewed by the GrowMeOnline team.';
+  'Find reliable suppliers with confidence, or showcase your business and receive qualified customer enquiries. All on one trusted platform.';
 // Resolved at build time. BETTER_AUTH_URL is already required, so it backs up
 // NEXT_PUBLIC_BASE_URL and a fresh deploy gets correct OG/sitemap/robots URLs.
 export const SITE_URL =

@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { connection } from 'next/server';
 import { notFound, permanentRedirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getPublicSupplier, getPublicSupplierForLegacySlug } from '@/server/public-suppliers';
 import { SITE_URL } from '@/lib/constants';
 
@@ -23,6 +24,9 @@ export async function generateMetadata({
   }
 
   const canonical = `${SITE_URL}/b/${supplier.slug}`;
+  const socialImage =
+    supplier.mediaAssets.find((asset) => asset.purpose === 'COVER') ??
+    supplier.mediaAssets.find((asset) => asset.purpose === 'LOGO');
   return {
     title: `${supplier.businessName} - local service provider`,
     description:
@@ -34,7 +38,19 @@ export async function generateMetadata({
       type: 'website',
       title: supplier.businessName,
       description: supplier.tagline ?? 'GrowMeOnline supplier profile',
-      url: canonical
+      url: canonical,
+      ...(socialImage
+        ? {
+            images: [
+              {
+                url: `${SITE_URL}/api/media/${socialImage.id}`,
+                width: socialImage.width ?? undefined,
+                height: socialImage.height ?? undefined,
+                alt: socialImage.altText ?? supplier.businessName
+              }
+            ]
+          }
+        : {})
     }
   };
 }
@@ -60,6 +76,11 @@ async function SupplierProfile({ params }: { params: RouteParams }) {
     if (canonicalSlug) permanentRedirect(`/b/${canonicalSlug}`);
     notFound();
   }
+  const logo = supplier.mediaAssets.find((asset) => asset.purpose === 'LOGO');
+  const cover = supplier.mediaAssets.find((asset) => asset.purpose === 'COVER');
+  const gallery = supplier.mediaAssets.filter(
+    (asset) => asset.purpose === 'GALLERY'
+  );
 
   return (
     <main className='min-h-screen bg-background px-5 py-12 sm:px-8'>
@@ -72,8 +93,8 @@ async function SupplierProfile({ params }: { params: RouteParams }) {
             name: supplier.businessName,
             description: supplier.description ?? supplier.tagline ?? undefined,
             url: `${SITE_URL}/b/${supplier.slug}`,
-            telephone: supplier.phone,
-            email: supplier.email ?? undefined,
+            ...(supplier.phone ? { telephone: supplier.phone } : {}),
+            ...(supplier.email ? { email: supplier.email } : {}),
             areaServed: supplier.serviceAreas.map((item) => ({
               '@type': 'City',
               name: item.city.name,
@@ -105,10 +126,32 @@ async function SupplierProfile({ params }: { params: RouteParams }) {
         </Link>
 
         <header className='mt-8 rounded-3xl border border-border bg-card p-6 sm:p-8'>
+          {cover && (
+            <div className='relative mb-6 h-48 overflow-hidden rounded-2xl sm:h-64'>
+              <Image
+                src={`/api/media/${cover.id}`}
+                alt={cover.altText ?? `${supplier.businessName} cover`}
+                fill
+                sizes='(max-width: 768px) 100vw, 896px'
+                className='object-cover'
+              />
+            </div>
+          )}
           <p className='text-primary text-sm font-semibold'>Verified provider</p>
-          <h1 className='mt-2 text-3xl font-semibold tracking-tight sm:text-4xl'>
-            {supplier.businessName}
-          </h1>
+          <div className='mt-2 flex items-center gap-4'>
+            {logo && (
+              <Image
+                src={`/api/media/${logo.id}`}
+                alt={logo.altText ?? `${supplier.businessName} logo`}
+                width={96}
+                height={96}
+                className='bg-background h-20 w-20 rounded-2xl border border-border object-contain p-2 sm:h-24 sm:w-24'
+              />
+            )}
+            <h1 className='text-3xl font-semibold tracking-tight sm:text-4xl'>
+              {supplier.businessName}
+            </h1>
+          </div>
           {supplier.tagline && (
             <p className='mt-3 text-lg text-muted-foreground'>
               {supplier.tagline}
@@ -126,6 +169,37 @@ async function SupplierProfile({ params }: { params: RouteParams }) {
           <p className='mt-3 text-xs text-muted-foreground'>
             GrowMeOnline reviews the request before any introduction.
           </p>
+          {(supplier.contactName || supplier.phone || supplier.email) && (
+            <div className='mt-5 grid gap-2 text-sm sm:grid-cols-2'>
+              {supplier.contactName && (
+                <p>
+                  Contact: <span className='font-medium'>{supplier.contactName}</span>
+                </p>
+              )}
+              {supplier.phone && (
+                <p>
+                  Phone:{' '}
+                  <a
+                    href={`tel:${supplier.phone}`}
+                    className='text-primary font-medium hover:underline'
+                  >
+                    {supplier.phone}
+                  </a>
+                </p>
+              )}
+              {supplier.email && (
+                <p>
+                  Email:{' '}
+                  <a
+                    href={`mailto:${supplier.email}`}
+                    className='text-primary font-medium hover:underline'
+                  >
+                    {supplier.email}
+                  </a>
+                </p>
+              )}
+            </div>
+          )}
         </header>
 
         <div className='mt-6 grid gap-6 md:grid-cols-2'>
@@ -168,6 +242,28 @@ async function SupplierProfile({ params }: { params: RouteParams }) {
             </ul>
           </section>
         </div>
+
+        {gallery.length > 0 && (
+          <section className='mt-6 rounded-2xl border border-border bg-card p-5'>
+            <h2 className='font-semibold'>Business photos</h2>
+            <ul className='mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3'>
+              {gallery.map((image) => (
+                <li
+                  key={image.id}
+                  className='relative aspect-[4/3] overflow-hidden rounded-xl'
+                >
+                  <Image
+                    src={`/api/media/${image.id}`}
+                    alt={image.altText ?? `${supplier.businessName} photo`}
+                    fill
+                    sizes='(max-width: 640px) 50vw, 33vw'
+                    className='object-cover'
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {supplier.website && (
           <a

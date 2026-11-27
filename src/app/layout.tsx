@@ -9,25 +9,26 @@ import { SITE_NAME, SITE_TAGLINE, SITE_URL } from '@/lib/constants';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — Find local home service providers`,
+    default: `${SITE_NAME} - Find Trusted Suppliers. Get More Customers. Grow Online.`,
     template: `%s | ${SITE_NAME}`
   },
   description: SITE_TAGLINE,
   keywords: [
-    'local home services',
-    'home repairs',
-    'Johannesburg service providers',
-    'Pretoria service providers'
+    'South African suppliers',
+    'verified suppliers',
+    'qualified customer enquiries',
+    'list your business online',
+    'South African businesses'
   ],
   openGraph: {
     type: 'website',
     siteName: SITE_NAME,
-    title: `${SITE_NAME} — Find local home service providers`,
+    title: `${SITE_NAME} - Find Trusted Suppliers. Get More Customers. Grow Online.`,
     description: SITE_TAGLINE
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${SITE_NAME} — Find local home service providers`,
+    title: `${SITE_NAME} - Find Trusted Suppliers. Get More Customers. Grow Online.`,
     description: SITE_TAGLINE
   }
 };

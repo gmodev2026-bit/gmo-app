@@ -156,6 +156,7 @@ enum AdminAuditAction {
   ENQUIRY_CONTACT_VERIFIED
   ENQUIRY_STATUS_CHANGED
   SUPPLIER_AVAILABILITY_RECORDED
+  SUPPLIER_MEDIA_REVIEWED
   ENQUIRY_DISPATCHED
   FOLLOW_UP_SCHEDULED
   FOLLOW_UP_RESOLVED
@@ -166,6 +167,17 @@ enum AdminAuditEntityType {
   SUPPLIER
   ENQUIRY
   CATALOG
+}
+
+enum BlogPostCategory {
+  FOR_CUSTOMERS
+  FOR_SUPPLIERS
+  PLATFORM_UPDATES
+}
+
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
 }
 
 model User {
@@ -198,16 +210,16 @@ model User {
 }
 
 model Client {
-  id               String            @id @default(uuid())
-  userId           String            @unique
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phone            String?
-  preferredContact ContactPreference @default(PHONE)
+  id                  String            @id @default(uuid())
+  userId              String            @unique
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone               String?
+  preferredContact    ContactPreference @default(PHONE)
   deletionRequestedAt DateTime?
   deletionReason      String?
-  enquiries        Enquiry[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  enquiries           Enquiry[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@map("client")
 }
@@ -389,6 +401,10 @@ model Supplier {
   phone                 String
   email                 String?
   website               String?
+  isContactNamePublic   Boolean                        @default(false)
+  isPhonePublic         Boolean                        @default(false)
+  isEmailPublic         Boolean                        @default(false)
+  isWebsitePublic       Boolean                        @default(false)
   status                SupplierStatus                 @default(DRAFT)
   isVerified            Boolean                        @default(false)
   verificationMethod    String?
@@ -419,11 +435,11 @@ model Supplier {
 }
 
 model SupplierSlugHistory {
-  id        String   @id @default(uuid())
+  id         String   @id @default(uuid())
   supplierId String
-  supplier  Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  slug      String   @unique
-  createdAt DateTime @default(now())
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  slug       String   @unique
+  createdAt  DateTime @default(now())
 
   @@index([supplierId, createdAt])
   @@map("supplier_slug_history")
@@ -495,19 +511,19 @@ model SupplierOffering {
 }
 
 model MediaAsset {
-  id          String      @id @default(uuid())
-  supplierId  String
-  supplier    Supplier    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  purpose     MediaPurpose
-  status      MediaStatus @default(PENDING)
-  objectKey   String      @unique
-  mimeType    String
-  byteSize    Int
-  width       Int?
-  height      Int?
-  altText     String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id         String       @id @default(uuid())
+  supplierId String
+  supplier   Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  purpose    MediaPurpose
+  status     MediaStatus  @default(PENDING)
+  objectKey  String       @unique
+  mimeType   String
+  byteSize   Int
+  width      Int?
+  height     Int?
+  altText    String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   @@index([supplierId, purpose, status])
   @@map("media_asset")
@@ -672,4 +688,26 @@ model AdminAuditEvent {
   @@index([actorUserId, createdAt])
   @@index([entityType, entityId, createdAt])
   @@map("admin_audit_event")
+}
+
+model BlogPost {
+  id              String           @id @default(uuid())
+  slug            String           @unique
+  title           String
+  excerpt         String
+  category        BlogPostCategory
+  author          String
+  readTimeMinutes Int
+  coverImage      String
+  coverImageAlt   String
+  content         Json
+  seoTitle        String?
+  seoDescription  String?
+  status          BlogPostStatus   @default(DRAFT)
+  publishedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status, publishedAt])
+  @@map("blog_post")
 }

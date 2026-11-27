@@ -7,6 +7,7 @@ import {
   createAdminSupplier,
   linkAdminSupplierOwner,
   reviewAdminSupplier,
+  reviewAdminSupplierMedia,
   updateAdminSupplierProfile
 } from '@/server/admin/suppliers';
 
@@ -68,5 +69,29 @@ export async function linkSupplierOwnerAction(
   return {
     status: 'success',
     message: 'Verified account linked to this supplier.'
+  };
+}
+
+export async function reviewSupplierMediaAction(
+  _previousState: SupplierActionState,
+  formData: FormData
+): Promise<SupplierActionState> {
+  const result = await reviewAdminSupplierMedia(formData);
+  if (result.supplierId) {
+    revalidatePath(`/admin/suppliers/${result.supplierId}`);
+    revalidatePath(`/admin/suppliers/${result.supplierId}/preview`);
+    revalidatePath('/dashboard/supplier');
+  }
+  if (result.slug) revalidatePath(`/b/${result.slug}`);
+
+  if (!result.success) {
+    return { status: 'error', message: result.message };
+  }
+  return {
+    status: 'success',
+    message:
+      formData.get('decision') === 'approve'
+        ? 'Image approved for public display.'
+        : 'Image removed and storage cleanup completed.'
   };
 }

@@ -110,6 +110,7 @@ function actionLabel(action: AdminAuditAction) {
     SUPPLIER_PROFILE_UPDATED: 'Supplier profile updated',
     SUPPLIER_REVIEWED: 'Supplier reviewed',
     SUPPLIER_ACCOUNT_LINKED: 'Supplier account linked',
+    SUPPLIER_MEDIA_REVIEWED: 'Supplier media reviewed',
     ENQUIRY_CONTACT_VERIFIED: 'Customer contact verified',
     ENQUIRY_STATUS_CHANGED: 'Enquiry status changed',
     SUPPLIER_AVAILABILITY_RECORDED: 'Supplier availability recorded',
@@ -139,6 +140,8 @@ function formatDetails(
       return `${readText(details, 'fromStatus')} → ${readText(details, 'toStatus')}; verified ${readBoolean(details, 'fromVerified')} → ${readBoolean(details, 'toVerified')}`;
     case 'SUPPLIER_ACCOUNT_LINKED':
       return 'Existing email-verified user account linked';
+    case 'SUPPLIER_MEDIA_REVIEWED':
+      return `${readText(details, 'purpose')}: ${readText(details, 'fromStatus')} → ${readText(details, 'toStatus')}`;
     case 'ENQUIRY_CONTACT_VERIFIED':
       return `${readText(details, 'method')}; sharing approval recorded`;
     case 'ENQUIRY_STATUS_CHANGED':

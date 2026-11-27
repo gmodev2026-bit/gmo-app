@@ -23,3 +23,7 @@ export function getAllowedSupplierTransitions(
 ): readonly SupplierStatus[] {
   return allowedTransitions[status] ?? [];
 }
+
+export function canEditSupplierProfile(status: SupplierStatus): boolean {
+  return getAllowedSupplierTransitions(status).includes('PENDING_APPROVAL');
+}
